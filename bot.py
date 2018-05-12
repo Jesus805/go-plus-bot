@@ -101,6 +101,7 @@ def reset_go_plus():
 
 def start():
     """
+    Start the bluetooth server socket
     """
     global isRunning, btSock
 
@@ -129,6 +130,7 @@ def start():
 
 def receive_data(client_sock, callback):
     """
+    Receive Data
     """
     try:
         # Will block until data is received or connection is closed
