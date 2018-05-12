@@ -12,9 +12,12 @@ BOARD_NUM = 11
 DELAY     = 1
 UUID      = "84cc6419-0ead-4ed5-a03f-c31c3c58ff27"
 
-# logging.basicConfig(filename='log.txt', filemode='w', level=logging.DEBUG)
+#TODO: Add Encryption
 
 def init():
+    """
+    Initialize GPIO and Logger
+    """
     logging.basicConfig(filename='/spool/log.txt', filemode='w', level=logging.DEBUG)
     log('Running Initialization...')
     GPIO.setmode(GPIO.BOARD)
@@ -22,7 +25,12 @@ def init():
     log('Initialization Complete')
 
 def log(text, level=''):
-    print(text)
+    """
+    Log the given message
+	:param text: text to log
+	:param level: type of log
+    """
+	print(text)
     if level == 'warning':
         logging.warning(text)
     elif level == 'error':
@@ -31,6 +39,9 @@ def log(text, level=''):
         logging.info(text)
 
 def init_bt_sock():
+    """
+    Initialize Bluetooth socket.
+    """
     global btSock, port, UUID
 
     # Set up bluetooth socket
@@ -56,20 +67,41 @@ def init_bt_sock():
             time.sleep(1)
     log('Advertising service {}'.format(UUID))
 
-def cleanup():
+def cleanup
+    """
+    Clean up the GPIO
+    """
     log('Cleaning up GPIO...')
     GPIO.cleanup()
     log('Cleanup complete')
 
 def toggle_button():
+    """
+    Toggle the GPIO to push the Go+'s button.
+    """
     global BOARD_NUM, DELAY
     
     log('Toggling GPIO')
     GPIO.output(BOARD_NUM, GPIO.HIGH)
     time.sleep(DELAY)
     GPIO.output(BOARD_NUM, GPIO.LOW)
+	
+def reset_go_plus():
+	"""
+	Toggle the GPIO to push the button in reset sequence.
+	"""
+	log('Resetting Go+')
+	GPIO.output(BOARD_NUM, GPIO.HIGH)
+	time.sleep(5)
+	GPIO.output(BOARD_NUM, GPIO.LOW)
+	time.sleep(.5)
+	GPIO.output(BOARD_NUM, GPIO.HIGH)
+	time.sleep(5)
+	GPIO.output(BOARD_NUM, GPIO.LOW)
 
 def start():
+    """
+    """
     global isRunning, btSock
 
     isRunning = True
@@ -96,6 +128,8 @@ def start():
 
 
 def receive_data(client_sock, callback):
+    """
+    """
     try:
         # Will block until data is received or connection is closed
         log('Waiting for data...')
@@ -108,8 +142,13 @@ def receive_data(client_sock, callback):
         return
 
 def run_command(data):
+    """
+    Parse the command
+    """
     if data == 'go':
         toggle_button()
+	else if data == 'reset':
+		reset_go_plus()
 
 if __name__ == "__main__":
     try:
