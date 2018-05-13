@@ -12,25 +12,26 @@ BOARD_NUM = 11
 DELAY     = 1
 UUID      = "84cc6419-0ead-4ed5-a03f-c31c3c58ff27"
 
-#TODO: Add Encryption
+# TODO: Add Encryption
 
 def init():
     """
     Initialize GPIO and Logger
     """
-    logging.basicConfig(filename='/spool/log.txt', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename='/tmp/log.txt', filemode='w', level=logging.DEBUG)
     log('Running Initialization...')
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(BOARD_NUM, GPIO.OUT)
     log('Initialization Complete')
+    toggle_button() # TODO: Turn on LED
 
 def log(text, level=''):
     """
     Log the given message
-	:param text: text to log
-	:param level: type of log
+    :param text: text to log
+    :param level: type of log
     """
-	print(text)
+    print(text)
     if level == 'warning':
         logging.warning(text)
     elif level == 'error':
@@ -55,19 +56,17 @@ def init_bt_sock():
     log('Socket bound to port {}'.format(port))
 
     log('Attempting to create advertisment service')
-    while True:
-        try:
-            advertise_service( btSock,
-                "Raspberry Pi",
-                service_id=UUID,
-                service_classes=[ UUID, SERIAL_PORT_CLASS ],
-                profiles=[ SERIAL_PORT_PROFILE ])
-            break;
-        except:
-            time.sleep(1)
+    try:
+        advertise_service( btSock,
+            "Raspberry Pi",
+            service_id=UUID,
+            service_classes=[ UUID, SERIAL_PORT_CLASS ],
+            profiles=[ SERIAL_PORT_PROFILE ])
+    except:            
+        log('Fatal Error: Bluetooth Service not initialized')
     log('Advertising service {}'.format(UUID))
 
-def cleanup
+def cleanup():
     """
     Clean up the GPIO
     """
@@ -87,17 +86,17 @@ def toggle_button():
     GPIO.output(BOARD_NUM, GPIO.LOW)
 	
 def reset_go_plus():
-	"""
-	Toggle the GPIO to push the button in reset sequence.
-	"""
-	log('Resetting Go+')
-	GPIO.output(BOARD_NUM, GPIO.HIGH)
-	time.sleep(5)
-	GPIO.output(BOARD_NUM, GPIO.LOW)
-	time.sleep(.5)
-	GPIO.output(BOARD_NUM, GPIO.HIGH)
-	time.sleep(5)
-	GPIO.output(BOARD_NUM, GPIO.LOW)
+    """
+    Toggle the GPIO to push the button in reset sequence.
+    """
+    log('Resetting Go+')
+    GPIO.output(BOARD_NUM, GPIO.HIGH)
+    time.sleep(7)
+    GPIO.output(BOARD_NUM, GPIO.LOW)
+    time.sleep(.5)
+    GPIO.output(BOARD_NUM, GPIO.HIGH)
+    time.sleep(7)
+    GPIO.output(BOARD_NUM, GPIO.LOW)
 
 def start():
     """
@@ -149,8 +148,8 @@ def run_command(data):
     """
     if data == 'go':
         toggle_button()
-	else if data == 'reset':
-		reset_go_plus()
+    elif data == 'reset':
+	reset_go_plus()
 
 if __name__ == "__main__":
     try:
