@@ -4,27 +4,85 @@ import RPi.GPIO as GPIO
 
 from bluetooth import *
 
-btSock    = None
-port      = 0
-isRunning = False
+bt_sock    = None
+port       = None
+is_running = False
 
-BOARD_NUM = 11
-DELAY     = 1
-UUID      = "84cc6419-0ead-4ed5-a03f-c31c3c58ff27"
+BUTTON_BOARD_NUM = 11
+LED_BOARD_NUM    = 16
 
-# TODO: Add Encryption
+DATA_LEN = 1024
+
+BUTTON_DELAY = 1
+LED_DELAY    = 5
+RESET_DELAY  = 7
+
+UUID = "84cc6419-0ead-4ed5-a03f-c31c3c58ff27"
+
+# TODO: Add Security
+
+#region Initialization
 
 def init():
     """
-    Initialize GPIO and Logger
+    Initialize GPIO and Event Logger
     """
-    logging.basicConfig(filename='/tmp/log.txt', filemode='w', level=logging.DEBUG)
+    global BUTTON_BOARD_NUM, LED_BOARD_NUM
+
+    dt = datetime.datetime.now().strftime("%B %d %Y %I:%M %p")
+    file_name = '/tmp/{} Go+ Bot.txt'.format(dt)
+    logging.basicConfig(filename=file_name, filemode='w', level=logging.DEBUG)
+    log('Log file created')
     log('Running Initialization...')
     GPIO.setmode(GPIO.BOARD)
-    GPIO.setup(BOARD_NUM, GPIO.OUT)
+    GPIO.setup(BUTTON_BOARD_NUM, GPIO.OUT)
+    GPIO.setup(LED_BOARD_NUM, GPIO.OUT)
     log('Initialization Complete')
-    toggle_button() # TODO: Turn on LED
 
+def init_bt_sock():
+    """
+    Initialize Bluetooth socket.
+    """
+    global bt_sock, port, UUID
+
+    # Set up Bluetooth socket
+    log('Creating Bluetooth Socket')
+    bt_sock = BluetoothSocket(RFCOMM)
+    bt_sock.bind(("", PORT_ANY))
+    bt_sock.listen(1)
+
+    # Set up bluetooth port
+    port = bt_sock.getsockname()[1]
+    log('Socket bound to port {}'.format(port))
+
+    log('Attempting to create advertisement service')
+    try:
+        advertise_service(bt_sock,
+                          "Raspberry Pi",
+                          service_id=UUID,
+                          service_classes=[UUID, SERIAL_PORT_CLASS],
+                          profiles=[SERIAL_PORT_PROFILE])
+    except:
+        log('Fatal Error: Bluetooth Service not initialized')
+    log('Advertising service {}'.format(UUID))
+    # Inform user that bluetooth is ready to connect
+    toggle_led()
+
+#endregion
+
+#region Clean up
+
+def cleanup():
+    """
+    Clean up the GPIO
+    """
+    log('Cleaning up GPIO...')
+    GPIO.cleanup()
+    log('Cleanup complete')
+
+#endregion
+
+#region Functions
 def log(text, level=''):
     """
     Log the given message
@@ -39,117 +97,100 @@ def log(text, level=''):
     else:
         logging.info(text)
 
-def init_bt_sock():
+def receive_data(client_sock, callback):
     """
-    Initialize Bluetooth socket.
+    Receive Data from Client
     """
-    global btSock, port, UUID
-
-    # Set up bluetooth socket
-    log('Creating Bluetooth Socket')
-    btSock = BluetoothSocket(RFCOMM)
-    btSock.bind(("", PORT_ANY))
-    btSock.listen(1)
-    
-    # Set up bluetooth port
-    port = btSock.getsockname()[1]
-    log('Socket bound to port {}'.format(port))
-
-    log('Attempting to create advertisment service')
+    global DATA_LEN
     try:
-        advertise_service( btSock,
-            "Raspberry Pi",
-            service_id=UUID,
-            service_classes=[ UUID, SERIAL_PORT_CLASS ],
-            profiles=[ SERIAL_PORT_PROFILE ])
-    except:            
-        log('Fatal Error: Bluetooth Service not initialized')
-    log('Advertising service {}'.format(UUID))
+        # Will block until data is received or connection is closed
+        log('Waiting for data...')
+        data = client_sock.recv(DATA_LEN)
+        if len(data) == 0:
+            return
+        log('Data Received \"{}\"'.format(data))
+        callback(data)
+    except BluetoothError as e:
+        log('Critical Error: \"{}\"'.format(e))
 
-def cleanup():
+def run_command(data):
     """
-    Clean up the GPIO
+    Parse and run the command
     """
-    log('Cleaning up GPIO...')
-    GPIO.cleanup()
-    log('Cleanup complete')
-
-def toggle_button():
-    """
-    Toggle the GPIO to push the Go+'s button.
-    """
-    global BOARD_NUM, DELAY
-    
-    log('Toggling GPIO')
-    GPIO.output(BOARD_NUM, GPIO.HIGH)
-    time.sleep(DELAY)
-    GPIO.output(BOARD_NUM, GPIO.LOW)
-	
-def reset_go_plus():
-    """
-    Toggle the GPIO to push the button in reset sequence.
-    """
-    log('Resetting Go+')
-    GPIO.output(BOARD_NUM, GPIO.HIGH)
-    time.sleep(7)
-    GPIO.output(BOARD_NUM, GPIO.LOW)
-    time.sleep(.5)
-    GPIO.output(BOARD_NUM, GPIO.HIGH)
-    time.sleep(7)
-    GPIO.output(BOARD_NUM, GPIO.LOW)
+    if data == 'go':
+        toggle_button()
+    elif data == 'reset':
+        reset_go_plus()
 
 def start():
     """
     Start the bluetooth server socket
     """
-    global isRunning, btSock
+    global is_running, bt_sock
 
-    isRunning = True
-    
-    while isRunning:
+    is_running = True
+
+    while is_running:
         try:
             init_bt_sock()
             log('Waiting for connection...')
-            client_sock, client_info = btSock.accept()
+            client_sock, client_info = bt_sock.accept()
             log('Connection from {}'.format(client_info))
             receive_data(client_sock, run_command)
-            log('Closing client socket')
+            log('Command Received and processed.. closing client socket')
             client_sock.close()
             log('Closing Bluetooth socket')
-            btSock.close()
+            bt_sock.close()
             log('Socket closed')
-    
+
         except IOError as e:
             log(e, 'error')
-            isRunning = False
+            is_running = False
         except KeyboardInterrupt:
             log('Keyboard interrupt, disconnecting', 'warning')
-            isRunning = False
+            is_running = False
+#endregion
 
+#region GPIO Toggling
 
-def receive_data(client_sock, callback):
+def reset_go_plus():
     """
-    Receive Data
+    Run the push sequence to reset the Go+
     """
-    try:
-        # Will block until data is received or connection is closed
-        log('Waiting for data...')
-        data = client_sock.recv(1024)
-        if len(data) == 0: return
-        log('Data Received \"{}\"'.format(data))
-        callback(data)
-    except BluetoothError as e:
-        log('Critical Error: \"{}\"'.format(e))
-        return
+    global BUTTON_BOARD_NUM, RESET_DELAY
+    log('Resetting Go+')
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.HIGH)
+    time.sleep(RESET_DELAY)
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.LOW)
+    time.sleep(.5)
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.HIGH)
+    time.sleep(RESET_DELAY)
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.LOW)
 
-def run_command(data):
+def toggle_button():
     """
-    Parse the command
+    Toggle the GPIO to push the Go+'s button.
     """
-    if data == 'go':
-        toggle_button()
-    elif data == 'reset':
-	reset_go_plus()
+    global BUTTON_BOARD_NUM, BUTTON_DELAY
+    
+    log('Toggling GPIO')
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.HIGH)
+    time.sleep(BUTTON_DELAY)
+    GPIO.output(BUTTON_BOARD_NUM, GPIO.LOW)
+
+def toggle_led():
+    """
+    Toggle the GPIO pin to inform the user that the bluetooth socket
+    is now listening for incoming connections.
+    """
+    global LED_BOARD_NUM, LED_DELAY
+
+    log('Toggling LED')
+    GPIO.output(LED_BOARD_NUM, GPIO.HIGH)
+    time.sleep(LED_DELAY)
+    GPIO.output(LED_BOARD_NUM, GPIO.LOW)
+
+#endregion
 
 if __name__ == "__main__":
     try:
