@@ -30,10 +30,10 @@ def init():
     Initialize GPIO and Event Logger
     """
     global BUTTON_BOARD_NUM, LED_BOARD_NUM
-
-    dt = datetime.datetime.now().strftime("%B %d %Y %I:%M %p")
-    file_name = '/tmp/{} Go+ Bot.txt'.format(dt)
+    epoch_time = int(time.time())
+    file_name = '/tmp/{} Go+ Bot.txt'.format(epoch_time)
     logging.basicConfig(filename=file_name, filemode='w', level=logging.DEBUG)
+    log(datetime.datetime.now().strftime("%B %d %Y %I:%M %p"))
     log('Log file created')
     log('Running Initialization...')
     GPIO.setmode(GPIO.BOARD)
