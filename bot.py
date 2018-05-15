@@ -8,7 +8,7 @@ from bluetooth import *
 bt_sock    = None
 port       = None
 is_running = False
-first_run  = True
+led_on     = False
 
 BUTTON_BOARD_NUM = 11
 LED_BOARD_NUM    = 16
@@ -20,8 +20,6 @@ LED_DELAY    = 5
 RESET_DELAY  = 7
 
 UUID = "84cc6419-0ead-4ed5-a03f-c31c3c58ff27"
-
-# TODO: Add Security
 
 #region Initialization
 
@@ -45,7 +43,7 @@ def init_bt_sock():
     """
     Initialize Bluetooth socket.
     """
-    global bt_sock, first_run, port, UUID
+    global bt_sock, led_on, port, UUID
 
     # Set up Bluetooth socket
     log('Creating Bluetooth Socket')
@@ -71,7 +69,7 @@ def init_bt_sock():
 
     # Inform user that bluetooth is ready to connect (using an LED)
     turn_on_led()
-    first_run = True
+    led_on = True
 
 #endregion
 
@@ -88,6 +86,7 @@ def cleanup():
 #endregion
 
 #region Functions
+
 def log(text, level=''):
     """
     Log the given message
@@ -112,7 +111,10 @@ def receive_data(client_sock, callback):
         log('Waiting for data...')
         data = client_sock.recv(DATA_LEN)
         # The data packet shouldn't be larger than 10 bytes.
-        if len(data) == 0 or len(data) > 10:
+        if len(data) == 0:
+            return
+        elif len(data) > 10:
+            log('Received more than 10 bytes, possible malicious data')
             return
 
         log('Data Received \"{}\"'.format(data))
@@ -152,6 +154,7 @@ def start():
 
             receive_data(client_sock, run_command)
             log('Command Received and processed.. closing client socket')
+            
             # Connection doesn't need to be maintained, close socket
             client_sock.close()
             log('Client socket closed')
