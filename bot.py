@@ -31,7 +31,7 @@ def init():
     """
     global BUTTON_BOARD_NUM, LED_BOARD_NUM
     epoch_time = int(time.time())
-    file_name = '/tmp/{} Go+ Bot.txt'.format(epoch_time)
+    file_name = '/tmp/{}_go_plus.log'.format(epoch_time)
     logging.basicConfig(filename=file_name, filemode='w', level=logging.DEBUG)
     log(datetime.datetime.now().strftime("%B %d %Y %I:%M %p"))
     log('Log file created')
