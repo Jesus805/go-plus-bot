@@ -135,7 +135,7 @@ def start():
     """
     Start the bluetooth server socket
     """
-    global bt_sock, first_run, is_running
+    global bt_sock, led_on, is_running
 
     is_running = True
 
@@ -148,8 +148,8 @@ def start():
             log('Connection from {}'.format(client_info))
 
             # User knows the app is loaded, the LED is no longer needed
-            if first_run:
-                first_run = False
+            if led_on:
+                led_on = False
                 turn_off_led()
 
             receive_data(client_sock, run_command)
