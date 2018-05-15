@@ -71,7 +71,7 @@ def init_bt_sock():
 
     # Inform user that bluetooth is ready to connect (using an LED)
     turn_on_led()
-    first_run()
+    first_run = True
 
 #endregion
 
