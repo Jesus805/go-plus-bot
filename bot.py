@@ -1,12 +1,14 @@
 import logging
 import time
 import RPi.GPIO as GPIO
+import datetime
 
 from bluetooth import *
 
 bt_sock    = None
 port       = None
 is_running = False
+first_run  = True
 
 BUTTON_BOARD_NUM = 11
 LED_BOARD_NUM    = 16
@@ -43,7 +45,7 @@ def init_bt_sock():
     """
     Initialize Bluetooth socket.
     """
-    global bt_sock, port, UUID
+    global bt_sock, first_run, port, UUID
 
     # Set up Bluetooth socket
     log('Creating Bluetooth Socket')
@@ -64,9 +66,12 @@ def init_bt_sock():
                           profiles=[SERIAL_PORT_PROFILE])
     except:
         log('Fatal Error: Bluetooth Service not initialized')
+
     log('Advertising service {}'.format(UUID))
-    # Inform user that bluetooth is ready to connect
-    toggle_led()
+
+    # Inform user that bluetooth is ready to connect (using an LED)
+    if first_run:
+        turn_on_led()
 
 #endregion
 
@@ -126,7 +131,7 @@ def start():
     """
     Start the bluetooth server socket
     """
-    global is_running, bt_sock
+    global bt_sock, first_run, is_running
 
     is_running = True
 
@@ -136,6 +141,12 @@ def start():
             log('Waiting for connection...')
             client_sock, client_info = bt_sock.accept()
             log('Connection from {}'.format(client_info))
+
+            # User knows that application is loaded, LED no longer needed
+            if first_run:
+                first_run = False
+                turn_off_led()
+
             receive_data(client_sock, run_command)
             log('Command Received and processed.. closing client socket')
             client_sock.close()
@@ -188,6 +199,18 @@ def toggle_led():
     log('Toggling LED')
     GPIO.output(LED_BOARD_NUM, GPIO.HIGH)
     time.sleep(LED_DELAY)
+    GPIO.output(LED_BOARD_NUM, GPIO.LOW)
+
+def turn_on_led():
+    global LED_BOARD_NUM
+
+    log('Turning on LED')
+    GPIO.output(LED_BOARD_NUM, GPIO.HIGH)
+
+def turn_off_led():
+    global LED_BOARD_NUM
+
+    log('Turning off LED')
     GPIO.output(LED_BOARD_NUM, GPIO.LOW)
 
 #endregion
