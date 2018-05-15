@@ -111,8 +111,10 @@ def receive_data(client_sock, callback):
         # Will block until data is received or connection is closed
         log('Waiting for data...')
         data = client_sock.recv(DATA_LEN)
-        if len(data) == 0:
+        # The data packet shouldn't be larger than 10 bytes.
+        if len(data) == 0 || len(data) > 10:
             return
+
         log('Data Received \"{}\"'.format(data))
         callback(data)
     except BluetoothError as e:
@@ -135,14 +137,15 @@ def start():
 
     is_running = True
 
+    init_bt_sock()
+
     while is_running:
         try:
-            init_bt_sock()
             log('Waiting for connection...')
             client_sock, client_info = bt_sock.accept()
             log('Connection from {}'.format(client_info))
 
-            # User knows that application is loaded, LED no longer needed
+            # User knows the app is loaded, the LED is no longer needed
             if first_run:
                 first_run = False
                 turn_off_led()
@@ -150,16 +153,16 @@ def start():
             receive_data(client_sock, run_command)
             log('Command Received and processed.. closing client socket')
             client_sock.close()
-            log('Closing Bluetooth socket')
-            bt_sock.close()
-            log('Socket closed')
+            log('Client socket closed')
 
         except IOError as e:
             log(e, 'error')
             is_running = False
+            bt_sock.close()
         except KeyboardInterrupt:
             log('Keyboard interrupt, disconnecting', 'warning')
             is_running = False
+            bt_sock.close()
 #endregion
 
 #region GPIO Toggling
@@ -202,12 +205,18 @@ def toggle_led():
     GPIO.output(LED_BOARD_NUM, GPIO.LOW)
 
 def turn_on_led():
+    """
+    Turn on the LED connected to the specified GPIO pin
+    """
     global LED_BOARD_NUM
 
     log('Turning on LED')
     GPIO.output(LED_BOARD_NUM, GPIO.HIGH)
 
 def turn_off_led():
+    """
+    Turn off the LED connected to the specified GPIO pin
+    """
     global LED_BOARD_NUM
 
     log('Turning off LED')
