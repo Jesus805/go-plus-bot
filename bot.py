@@ -70,8 +70,8 @@ def init_bt_sock():
     log('Advertising service {}'.format(UUID))
 
     # Inform user that bluetooth is ready to connect (using an LED)
-    if first_run:
-        turn_on_led()
+    turn_on_led()
+    first_run()
 
 #endregion
 
@@ -112,7 +112,7 @@ def receive_data(client_sock, callback):
         log('Waiting for data...')
         data = client_sock.recv(DATA_LEN)
         # The data packet shouldn't be larger than 10 bytes.
-        if len(data) == 0 || len(data) > 10:
+        if len(data) == 0 or len(data) > 10:
             return
 
         log('Data Received \"{}\"'.format(data))
@@ -152,17 +152,21 @@ def start():
 
             receive_data(client_sock, run_command)
             log('Command Received and processed.. closing client socket')
+            # Connection doesn't need to be maintained, close socket
             client_sock.close()
             log('Client socket closed')
 
         except IOError as e:
             log(e, 'error')
             is_running = False
-            bt_sock.close()
+        except BluetoothError as e:
+            log('Bluetooth Error: \"{}\"'.format(e), 'error')
+            is_running = False
         except KeyboardInterrupt:
             log('Keyboard interrupt, disconnecting', 'warning')
             is_running = False
-            bt_sock.close()
+    bt_sock.close()
+
 #endregion
 
 #region GPIO Toggling
